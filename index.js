@@ -10,6 +10,7 @@ const dirDict = {
   archives: [".zip", ".rar"],
   others: [],
 };
+const isExistDir = {};
 
 async function dirHandler(dirPath) {
   const data = await fs.readdir(dirPath);
@@ -27,23 +28,35 @@ async function dirHandler(dirPath) {
 
   const dirStat = result.map(({ value }) => value);
 
-  dirStat.forEach((el) => {
+  const finallResult = dirStat.map(async (el) => {
     if (el.isDir) {
-      dirHandler(el.itemPath);
+      await dirHandler(el.itemPath);
     } else {
-      fileHandler(el.itemPath);
+      await fileHandler(el.itemPath);
     }
   });
+  await Promise.allSettled(finallResult);
 }
 
 async function fileHandler(filePath) {
-  const { ext } = path.parse(filePath);
+  const { ext, base } = path.parse(filePath);
   for (let key in dirDict) {
     if (dirDict[key].includes(ext)) {
-      // write to dir 'key'
+      const sortedDir = path.join(targetPath, key);
+      if (!isExistDir[key]) {
+        isExistDir[key] = true;
+        await fs.mkdir(sortedDir);
+      }
+      await fs.rename(filePath, path.join(sortedDir, base));
       return;
     }
   }
+  const otherDir = path.join(targetPath, "other");
+  if (!isExistDir["other"]) {
+    isExistDir["other"] = true;
+    await fs.mkdir(otherDir);
+  }
+  await fs.rename(filePath, path.join(otherDir, base));
   //write to  dir 'other'
 }
 
